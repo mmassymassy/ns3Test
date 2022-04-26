@@ -4,8 +4,7 @@
  *
  */
 #define NS_LOG_APPEND_CONTEXT                                           \
-  if (m_ipv4) { std::clog << "[node " << m_ipv4->GetObject<Node> ()->GetId () << "] ";
-  std::cout << "[node " << m_ipv4->GetObject<Node> ()->GetId () << "] "; }
+  if (m_ipv4) { std::clog << "[node " << m_ipv4->GetObject<Node> ()->GetId () << "] "; }
 
 #include "gpsr.h"
 #include "ns3/log.h"
@@ -82,7 +81,7 @@ struct DeferredRouteOutputTag : public Tag
 /********** Miscellaneous constants **********/
 
 /// Maximum allowed jitter.
-#define GPSR_MAXJITTER          (HelloInterval.GetSeconds () / 4)
+#define GPSR_MAXJITTER          (HelloInterval.GetSeconds () / 2)
 /// Random number between [(-GPSR_MAXJITTER)-GPSR_MAXJITTER] used to jitter HELLO packet transmission.
 #define JITTER (Seconds (UniformRandomVariable ().GetValue (-GPSR_MAXJITTER, GPSR_MAXJITTER))) 
 #define FIRST_JITTER (Seconds (UniformRandomVariable ().GetValue (0, GPSR_MAXJITTER))) //first Hello can not be in the past, used only on SetIpv4
@@ -95,7 +94,7 @@ NS_OBJECT_ENSURE_REGISTERED (RoutingProtocol);
 const uint32_t RoutingProtocol::GPSR_PORT = 666;
 
 RoutingProtocol::RoutingProtocol ()
-  : HelloInterval (Seconds (0.1)),
+  : HelloInterval (Seconds (1)),
     MaxQueueLen (64),
     MaxQueueTime (Seconds (30)),
     m_queue (MaxQueueLen, MaxQueueTime),
@@ -170,15 +169,7 @@ NS_LOG_FUNCTION (this << p->GetUid () << header.GetDestination () << idev->GetAd
   int32_t iif = m_ipv4->GetInterfaceForDevice (idev);
   Ipv4Address dst = header.GetDestination ();
   Ipv4Address origin = header.GetSource ();
-  InetSocketAddress orii = InetSocketAddress::ConvertFrom (origin);
-  std::cout << "Packet origin "<< orii.GetIpv4();
-  InetSocketAddress destii = InetSocketAddress::ConvertFrom (dst);
-  std::cout << "Packet origin "<< destii.GetIpv4();
-  std::string CSVfileName = "gpsrTracePackets.txt";
-  std::ofstream out (CSVfileName.c_str ());
-  out << "Source : "<< orii.GetIpv4() << "Dest:" << destii.GetIpv4() <<
-  std::endl;
-  out.close ();
+
   DeferredRouteOutputTag tag; //FIXME since I have to check if it's in origin for it to work it means I'm not taking some tag out...
   if (p->PeekPacketTag (tag) && IsMyOwnAddress (origin))
     {
@@ -214,7 +205,7 @@ NS_LOG_FUNCTION (this << p->GetUid () << header.GetDestination () << idev->GetAd
         }
       else
         {
-          NS_LOG_LOGIC ("Broadcast local delivery to " << dst);
+//          NS_LOG_LOGIC ("Broadcast local delivery to " << dst);
         }
 
       lcb (packet, header, iif);
@@ -313,14 +304,10 @@ RoutingProtocol::SendPacketFromQueue (Ipv4Address dst)
   if(m_neighbors.isNeighbour (dst))
     {
       nextHop = dst;
-      InetSocketAddress diis = InetSocketAddress::ConvertFrom (nextHop);
-      std::cout << "next hop is destination "<< diis.GetIpv4();
     }
   else{
     Vector dstPos = m_locationService->GetPosition (dst);
     nextHop = m_neighbors.BestNeighbor (dstPos, myPos);
-    InetSocketAddress diis2 = InetSocketAddress::ConvertFrom (nextHop);
-    std::cout << "next hop is destination "<< diis2.GetIpv4();
     if (nextHop == Ipv4Address::GetZero ())
       {
         NS_LOG_LOGIC ("Fallback to recovery-mode. Packets to " << dst);
